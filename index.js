@@ -76,6 +76,19 @@ async function run() {
     const ridersCollection = db.collection("riders");
     const paymentCollection = db.collection("payments");
 
+    // middle admin before aloowing admin activity
+    // must be used after verifyFBToken middleware
+
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded_email;
+      const query = { email };
+      const user = await userCollection.findOne(query);
+      if (!user || user.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     // users related APIS
     app.get("/users", verifyFBToken, async (req, res) => {
       const cursor = userCollection.find();
@@ -110,18 +123,23 @@ async function run() {
 
     // id
 
-    app.patch("/users/:id", async (req, res) => {
-      const id = req.params.id;
-      const roleInfo = req.body;
-      const query = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          role: roleInfo.role,
-        },
-      };
-      const result = await userCollection.updateOne(query, updatedDoc);
-      res.send(result);
-    });
+    app.patch(
+      "/users/:id/role",
+      verifyFBToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const roleInfo = req.body;
+        const query = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            role: roleInfo.role,
+          },
+        };
+        const result = await userCollection.updateOne(query, updatedDoc);
+        res.send(result);
+      }
+    );
 
     // parcel api
     app.get("/parcels", async (req, res) => {
@@ -184,7 +202,7 @@ async function run() {
 
     // patch
 
-    app.patch("/riders/:id", verifyFBToken, async (req, res) => {
+    app.patch("/riders/:id", verifyFBToken, verifyAdmin, async (req, res) => {
       const status = req.body.status;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
