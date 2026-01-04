@@ -156,11 +156,14 @@ async function run() {
     // parcel api
     app.get("/parcels", async (req, res) => {
       const query = {};
-      const { email } = req.query;
+      const { email, deliveryStatus } = req.query;
 
       // parcels?email=''&
       if (email) {
         query.senderEmail = email;
+      }
+      if (deliveryStatus) {
+        query.deliveryStatus = deliveryStatus;
       }
 
       // options
@@ -183,6 +186,8 @@ async function run() {
       res.send(result);
     });
 
+    //
+
     // to delete
     app.delete("/parcels/:id", async (req, res) => {
       const id = req.params.id;
@@ -193,22 +198,32 @@ async function run() {
     });
 
     // riders related APIS
+
+    app.get("/riders", async (req, res) => {
+      const { status, district, workStatus } = req.query;
+      const query = {};
+
+      if (status) {
+        query.status = status;
+      }
+      if (district) {
+        query.district = district;
+      }
+      if (workStatus) {
+        query.workStatus = workStatus;
+      }
+      const cursor = ridersCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    //
     app.post("/riders", async (req, res) => {
       const rider = req.body;
       rider.status = "pending";
       rider.createdAt = new Date();
 
       const result = await ridersCollection.insertOne(rider);
-      res.send(result);
-    });
-
-    app.get("/riders", async (req, res) => {
-      const query = {};
-      if (req.query.status) {
-        query.status = req.query.status;
-      }
-      const cursor = ridersCollection.find(query);
-      const result = await cursor.toArray();
       res.send(result);
     });
 
@@ -221,6 +236,7 @@ async function run() {
       const updatedDoc = {
         $set: {
           status: status,
+          workStatus: "available",
         },
       };
       const result = await ridersCollection.updateOne(query, updatedDoc);
@@ -394,7 +410,6 @@ async function run() {
       const paymentExist = await paymentCollection.findOne(query);
       console.log(paymentExist);
 
-      // ১. এখানে ঠিক আছে (return আছে)
       if (paymentExist) {
         return res.send({
           message: "already exists",
@@ -411,6 +426,7 @@ async function run() {
         const update = {
           $set: {
             paymentStatus: "paid",
+            deliveryStatus: "pending-pickup",
             trackingId: trackingId,
           },
         };
