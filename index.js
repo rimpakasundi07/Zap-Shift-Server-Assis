@@ -74,6 +74,7 @@ async function run() {
     const userCollection = db.collection("users");
     const parcelsCollection = db.collection("parcels");
     const ridersCollection = db.collection("riders");
+    const trackingsCollection = db.collection("trackings");
     const paymentCollection = db.collection("payments");
 
     // middle admin before aloowing admin activity
@@ -87,6 +88,19 @@ async function run() {
         return res.status(403).send({ message: "forbidden access" });
       }
       next();
+    };
+
+    //
+
+    const logTracking = async (trackingId, status) => {
+      const log = {
+        trackingId,
+        status,
+        details: status.split("-").join(" "),
+        createdAt: new Date(),
+      };
+      const result = await trackingsCollection.insertOne(log);
+      return result;
     };
 
     // users related APIS
@@ -520,10 +534,11 @@ async function run() {
           trackingId: trackingId,
         };
 
-        // ২. আগের কোডে এখানে অনর্থক ডাবল চেক ছিল, সেটা সরিয়ে দিয়েছি
         const resultPayment = await paymentCollection.insertOne(payment);
 
-        // ৩. সমস্যা সমাধান: এখানে অবশ্যই 'return' দিতে হবে
+        //
+        logTracking(trackingId, "pending-pickup");
+
         return res.send({
           success: true,
           modifyParcel: result,
