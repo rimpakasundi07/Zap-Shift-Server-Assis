@@ -226,7 +226,7 @@ async function run() {
 
     // TODO: rename this to be specific like / parcels /:id/assign
     app.patch("/parcels/:id", async (req, res) => {
-      const { riderId, riderName, riderEmail } = req.body;
+      const { riderId, riderName, riderEmail, trackingId } = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
 
@@ -252,13 +252,17 @@ async function run() {
         riderQuery,
         riderUpdatedDoc
       );
+
+      // log tracking
+      logTracking(trackingId, "driver_assigned");
+
       res.send(riderResult);
     });
 
     //
 
     app.patch("/parcels/:id/status", async (req, res) => {
-      const { deliveryStatus, riderId } = req.body;
+      const { deliveryStatus, riderId, trackingId } = req.body;
       const query = { _id: new ObjectId(req.params.id) };
       const updatedDoc = {
         $set: {
@@ -282,6 +286,8 @@ async function run() {
       }
 
       const result = await parcelsCollection.updateOne(query, updatedDoc);
+      // log tracking
+      logTracking(trackingId, deliveryStatus);
       res.send(result);
     });
 
@@ -571,6 +577,15 @@ async function run() {
       }
       const cursor = paymentCollection.find(query).sort({ paidAt: -1 });
       const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // tracking related APIS
+
+    app.get("/trackings/:trackingId/logs", async (req, res) => {
+      const trackingId = req.params.trackingId;
+      const query = { trackingId };
+      const result = await trackingsCollection.find(query).toArray();
       res.send(result);
     });
 
