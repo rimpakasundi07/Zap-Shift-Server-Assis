@@ -90,6 +90,31 @@ async function run() {
       next();
     };
 
+    // another
+    // const verifyRider = async (req, res, next) => {
+    //   const email = req.decoded_email;
+    //   const query = { email };
+    //   const user = await userCollection.findOne(query);
+    //   if (!user || user.role !== "rider") {
+    //     return res.status(403).send({ message: "forbidden access" });
+    //   }
+    //   next();
+    // };
+
+    const verifyRider = async (req, res, next) => {
+      try {
+        const email = req.decoded_email;
+        const user = await userCollection.findOne({ email });
+
+        if (!user || user.role !== "rider") {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+        next();
+      } catch (error) {
+        res.status(500).send({ message: "server error" });
+      }
+    };
+
     //
 
     const logTracking = async (trackingId, status) => {
@@ -212,6 +237,8 @@ async function run() {
       const result = await parcelsCollection.findOne(query);
       res.send(result);
     });
+
+    app.get("/parcels/delivery-status/status", async (req, res) => {});
 
     // to add
 
@@ -395,6 +422,7 @@ async function run() {
         mode: "payment",
         metadata: {
           parcelId: paymentInfo.parcelId,
+          trackingId: paymentInfo.trackingId,
         },
         customer_email: paymentInfo.senderEmail,
         success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -505,6 +533,8 @@ async function run() {
       const sessionId = req.query.session_id;
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
+      //console.log("session retrieve",session);
+
       const transactionId = session.payment_intent;
       const query = { transactionId: transactionId };
 
@@ -518,8 +548,10 @@ async function run() {
           trackingId: paymentExist.trackingId,
         });
       }
+      // use the previous tracking id created during the parcel create which was set to the session metadata during session creation
 
-      const trackingId = generateTrackingId();
+      // const trackingId = generateTrackingId();
+      const trackingId = session.metadata.trackingId;
 
       if (session.payment_status === "paid") {
         const id = session.metadata.parcelId;
@@ -528,7 +560,7 @@ async function run() {
           $set: {
             paymentStatus: "paid",
             deliveryStatus: "pending-pickup",
-            trackingId: trackingId,
+            // trackingId: trackingId,
           },
         };
         const result = await parcelsCollection.updateOne(query, update);
@@ -559,7 +591,6 @@ async function run() {
         });
       }
 
-      // ৪. যদি পেমেন্ট paid না হয়, শুধু তখনই এই লাইনটি চলবে
       res.send({
         success: false,
       });
