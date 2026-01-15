@@ -17,6 +17,7 @@ admin.initializeApp({
 
 const crypto = require("crypto");
 const { runInContext } = require("vm");
+const { count } = require("console");
 function generateTrackingId() {
   const prefix = "PRCL"; // your brand prefix
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, " ");
@@ -238,7 +239,18 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/parcels/delivery-status/status", async (req, res) => {});
+    app.get("/parcels/delivery-status/status", async (req, res) => {
+      const pipeline = [
+        {
+          $group: {
+            _id: "$deliveryStatus",
+            count: { $sum: 1 },
+          },
+        },
+      ];
+      const result = await parcelsCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    });
 
     // to add
 
